@@ -222,6 +222,29 @@ input:checked + .slider:before {
   padding-right: 20px !important;
 }
 
+.stats-table thead th::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  background-color: #111C4E;
+  color: white;
+  font-size: 0.8em;
+  border-radius: 4px;
+  white-space: nowrap;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 20;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  pointer-events: none;
+  min-width: 100px;
+  text-align: center;
+}
+
+/* Flecha del tooltip */
 .stats-table thead th::before {
   content: '↕';
   position: absolute;
@@ -242,37 +265,26 @@ input:checked + .slider:before {
   color: #FF9E1B;
 }
 
-/* Ajustes para móvil */
-@media screen and (max-width: 768px) {
-  .stats-table-container {
-    margin: 0;
-    padding: 0;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+/* Alineación de nombres de jugadores */
+.stats-table td[data-col="playerName"] {
+  text-align: left !important;
+  padding-left: 10px !important;
+}
 
-  .stats-table {
-    min-width: 1200px;
-  }
+/* Ajuste para tooltips que se salen de la pantalla */
+.stats-table thead th:first-child::after,
+.stats-table thead th:nth-child(2)::after,
+.stats-table thead th:nth-child(3)::after {
+  left: 0;
+  transform: none;
+}
 
-  .stats-table thead th,
-  .stats-table tbody td {
-    padding: 6px 4px;
-    font-size: 0.75em;
-  }
-
-  /* Mantener el mismo z-index para todo el encabezado */
-  .stats-table thead,
-  .stats-table thead th {
-    z-index: 10;
-    background-color: #f2f2f2;
-  }
-
-  /* Eliminar cualquier z-index de las celdas del cuerpo */
-  .stats-table tbody td {
-    position: static;
-    background-color: #fff;
-  }
+.stats-table thead th:last-child::after,
+.stats-table thead th:nth-last-child(2)::after,
+.stats-table thead th:nth-last-child(3)::after {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 
 /* Estilos para las fotos de los jugadores */
@@ -605,6 +617,56 @@ footer {
 
   .overlay.active {
     display: block;
+  }
+
+  /* Mantener el encabezado fijo en móvil - regla simplificada */
+  .stats-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #f2f2f2;
+  }
+
+  .stats-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #f2f2f2;
+    border-bottom: 2px solid #ddd;
+  }
+
+  /* Eliminar todos los z-index de las celdas del cuerpo */
+  .stats-table tbody td,
+  .stats-table td:first-child,
+  .stats-table td:nth-child(2),
+  .stats-table td:nth-child(3),
+  .stats-table td:nth-child(4),
+  .stats-table td:nth-child(5) {
+    position: static;
+    z-index: auto;
+    background-color: #fff;
+  }
+
+  /* Asegurar que los tooltips de equipo estén por debajo del header */
+  .team-name::after {
+    z-index: 99;
+  }
+
+  /* Eliminar reglas duplicadas */
+  .stats-table th:first-child,
+  .stats-table th:nth-child(2),
+  .stats-table th:nth-child(3),
+  .stats-table th:nth-child(4),
+  .stats-table th:nth-child(5),
+  .stats-table thead th:first-child,
+  .stats-table thead th:nth-child(2),
+  .stats-table thead th:nth-child(3),
+  .stats-table thead th:nth-child(4),
+  .stats-table thead th:nth-child(5) {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #f2f2f2;
   }
 }
 
