@@ -4,6 +4,7 @@
 let allPlayersStats = [];
 let competitionSet = new Set();
 let teamSet = new Set();
+let roundSet = new Set();
 
 let currentSortCol = null;
 let currentSortOrder = "desc";
@@ -104,6 +105,11 @@ async function fetchMatchFiles() {
   }
 }
 
+function isGroupPhase(round) {
+  // Si es una letra sola (A, B, C, D, E) es fase de grupos
+  return /^[A-E]$/.test(round.trim());
+}
+
 async function loadAllStats() {
   const urls = await fetchMatchFiles();
   const playersMap = new Map();
@@ -113,6 +119,7 @@ async function loadAllStats() {
       const resp = await fetch(url);
       const data = await resp.json();
       const comp = data.HEADER.competition || "";
+      const round = data.HEADER.round || "";
       competitionSet.add(comp);
 
       const matchDate = data.HEADER.starttime || "";
@@ -125,13 +132,13 @@ async function loadAllStats() {
         teamSet.add(teamName);
 
         const rivalName = (index === 0) ? teamBName : teamAName;
+        const currentPhase = isGroupPhase(round) ? "Fase de Grupos" : "Playoffs";
 
         const femaleCompetitions = [
           "LF Endesa",
           "LF Challenge",
           "L.F. 2",
           "CE SSAA Cadete Fem.",
-          "CE SSAA Mini Fem.",
           "CE SSA Infantil Fem."
         ];
         let genero = "H";
@@ -140,91 +147,108 @@ async function loadAllStats() {
         }
 
         (teamObj.PLAYER || []).forEach(player => {
-          const playerId = `${player.id}-${teamName}-${comp}`;
-          if (!playersMap.has(playerId)) {
-            playersMap.set(playerId, {
-              dorsal: player.no || "",
-              playerPhoto: player.logo || "https://via.placeholder.com/50",
-              playerName: player.name || "Desconocido",
-              teamName,
-              competition: comp,
-              gender: genero,
-              games: 0,
-              pts: 0,
-              t2i: 0,
-              t2c: 0,
-              t3i: 0,
-              t3c: 0,
-              tli: 0,
-              tlc: 0,
-              ro: 0,
-              rd: 0,
-              rt: 0,
-              as: 0,
-              br: 0,
-              bp: 0,
-              tp: 0,
-              fc: 0,
-              va: 0,
-              pm: 0,
-              matches: []
+          // Crear IDs únicos para cada fase y total
+          const totalId = `${player.id}-${teamName}-${comp}-total`;
+          const groupPhaseId = `${player.id}-${teamName}-${comp}-grupos`;
+          const playoffsId = `${player.id}-${teamName}-${comp}-playoffs`;
+
+          // Inicializar registros si no existen
+          [totalId, groupPhaseId, playoffsId].forEach(id => {
+            if (!playersMap.has(id)) {
+              playersMap.set(id, {
+                dorsal: player.no || "",
+                playerPhoto: player.logo || "https://via.placeholder.com/50",
+                playerName: player.name || "Desconocido",
+                teamName,
+                competition: comp,
+                round: round,
+                phaseType: id.endsWith('total') ? "" : (id.endsWith('grupos') ? "Fase de Grupos" : "Playoffs"),
+                gender: genero,
+                games: 0,
+                pts: 0,
+                t2i: 0,
+                t2c: 0,
+                t3i: 0,
+                t3c: 0,
+                tli: 0,
+                tlc: 0,
+                ro: 0,
+                rd: 0,
+                rt: 0,
+                as: 0,
+                br: 0,
+                bp: 0,
+                tp: 0,
+                fc: 0,
+                va: 0,
+                pm: 0,
+                matches: []
+              });
+            }
+          });
+
+          // Actualizar estadísticas en el registro total
+          const totalRecord = playersMap.get(totalId);
+          const phaseRecord = playersMap.get(currentPhase === "Fase de Grupos" ? groupPhaseId : playoffsId);
+
+          [totalRecord, phaseRecord].forEach(record => {
+            record.games += 1;
+
+            const p2a = parseInt(player.p2a || 0);
+            const p2m = parseInt(player.p2m || 0);
+            const p3a = parseInt(player.p3a || 0);
+            const p3m = parseInt(player.p3m || 0);
+            const p1a = parseInt(player.p1a || 0);
+            const p1m = parseInt(player.p1m || 0);
+
+            record.pts += parseInt(player.pts || 0);
+            record.t2i += p2a;
+            record.t2c += p2m;
+            record.t3i += p3a;
+            record.t3c += p3m;
+            record.tli += p1a;
+            record.tlc += p1m;
+            record.ro += parseInt(player.ro || 0);
+            record.rd += parseInt(player.rd || 0);
+            record.rt += parseInt(player.rt || 0);
+            record.as += parseInt(player.assist || 0);
+            record.br += parseInt(player.st || 0);
+            record.bp += parseInt(player.to || 0);
+            record.tp += parseInt(player.bs || 0);
+            record.fc += parseInt(player.pf || 0);
+            record.va += parseInt(player.val || 0);
+            record.pm += parseInt(player.pllss || 0);
+
+            const pct2 = (p2a > 0) ? ((p2m / p2a) * 100).toFixed(1) : "0.0";
+            const pct3 = (p3a > 0) ? ((p3m / p3a) * 100).toFixed(1) : "0.0";
+            const pctTl = (p1a > 0) ? ((p1m / p1a) * 100).toFixed(1) : "0.0";
+
+            record.matches.push({
+              matchDate,
+              round: round,
+              phaseType: currentPhase,
+              rival: rivalName,
+              pts: parseInt(player.pts || 0),
+              t2i: p2a,
+              t2c: p2m,
+              pct2,
+              t3i: p3a,
+              t3c: p3m,
+              pct3,
+              tli: p1a,
+              tlc: p1m,
+              pctTl,
+              ro: parseInt(player.ro || 0),
+              rd: parseInt(player.rd || 0),
+              rt: parseInt(player.rt || 0),
+              as: parseInt(player.assist || 0),
+              br: parseInt(player.st || 0),
+              bp: parseInt(player.to || 0),
+              tp: parseInt(player.bs || 0),
+              fc: parseInt(player.pf || 0),
+              va: parseInt(player.val || 0),
+              pm: parseInt(player.pllss || 0)
             });
-          }
-          const record = playersMap.get(playerId);
-          record.games += 1;
-
-          const p2a = parseInt(player.p2a || 0);
-          const p2m = parseInt(player.p2m || 0);
-          const p3a = parseInt(player.p3a || 0);
-          const p3m = parseInt(player.p3m || 0);
-          const p1a = parseInt(player.p1a || 0);
-          const p1m = parseInt(player.p1m || 0);
-
-          record.pts += parseInt(player.pts || 0);
-          record.t2i += p2a;
-          record.t2c += p2m;
-          record.t3i += p3a;
-          record.t3c += p3m;
-          record.tli += p1a;
-          record.tlc += p1m;
-          record.ro += parseInt(player.ro || 0);
-          record.rd += parseInt(player.rd || 0);
-          record.rt += parseInt(player.rt || 0);
-          record.as += parseInt(player.assist || 0);
-          record.br += parseInt(player.st || 0);
-          record.bp += parseInt(player.to || 0);
-          record.tp += parseInt(player.bs || 0);
-          record.fc += parseInt(player.pf || 0);
-          record.va += parseInt(player.val || 0);
-          record.pm += parseInt(player.pllss || 0);
-
-          const pct2 = (p2a > 0) ? ((p2m / p2a) * 100).toFixed(1) : "0.0";
-          const pct3 = (p3a > 0) ? ((p3m / p3a) * 100).toFixed(1) : "0.0";
-          const pctTl = (p1a > 0) ? ((p1m / p1a) * 100).toFixed(1) : "0.0";
-
-          record.matches.push({
-            matchDate,
-            rival: rivalName,
-            pts: parseInt(player.pts || 0),
-            t2i: p2a,
-            t2c: p2m,
-            pct2,
-            t3i: p3a,
-            t3c: p3m,
-            pct3,
-            tli: p1a,
-            tlc: p1m,
-            pctTl,
-            ro: parseInt(player.ro || 0),
-            rd: parseInt(player.rd || 0),
-            rt: parseInt(player.rt || 0),
-            as: parseInt(player.assist || 0),
-            br: parseInt(player.st || 0),
-            bp: parseInt(player.to || 0),
-            tp: parseInt(player.bs || 0),
-            fc: parseInt(player.pf || 0),
-            va: parseInt(player.val || 0),
-            pm: parseInt(player.pllss || 0)
           });
         });
       });
@@ -241,6 +265,7 @@ async function loadAllStats() {
 function fillSelects() {
   const filterCompetition = document.getElementById("filterCompetition");
   const filterTeam = document.getElementById("filterTeam");
+  const filterRound = document.getElementById("filterRound");
 
   competitionSet.forEach(c => {
     const opt = document.createElement("option");
@@ -255,17 +280,34 @@ function fillSelects() {
     opt.textContent = t;
     filterTeam.appendChild(opt);
   });
+
+  // Limpiar y añadir las dos opciones principales al select de fases
+  filterRound.innerHTML = `
+    <option value="">-- Fase --</option>
+    <option value="Fase de Grupos">Fase de Grupos</option>
+    <option value="Playoffs">Playoffs</option>
+  `;
 }
 
 function applyFilters() {
   const compSel = document.getElementById("filterCompetition").value;
   const teamSel = document.getElementById("filterTeam").value;
   const genderSel = document.getElementById("filterGender").value;
+  const phaseSel = document.getElementById("filterRound").value;
   const modeToggle = document.getElementById("modeToggle");
   const searchInput = document.getElementById("searchPlayerTeam");
   const searchTerm = searchInput.value.toLowerCase();
 
   let filteredData = allPlayersStats.filter(player => {
+    // Si no hay fase seleccionada, mostrar solo los registros totales
+    if (!phaseSel && player.phaseType !== "") {
+      return false;
+    }
+    // Si hay fase seleccionada, mostrar solo los registros de esa fase
+    if (phaseSel && player.phaseType !== phaseSel) {
+      return false;
+    }
+
     const matchesComp = !compSel || player.competition === compSel;
     const matchesTeam = !teamSel || player.teamName === teamSel;
     const matchesGender = !genderSel || player.gender === genderSel;
@@ -380,61 +422,120 @@ function toggleMatchDetails(cell, player) {
     
     const detailsTable = document.createElement("table");
     detailsTable.className = "match-details-table";
+
+    // Encontrar los valores máximos para cada estadística
+    const maxValues = {
+      pts: Math.max(...player.matches.map(m => m.pts)),
+      t2c: Math.max(...player.matches.map(m => m.t2c)),
+      t2i: Math.max(...player.matches.map(m => m.t2i)),
+      t3c: Math.max(...player.matches.map(m => m.t3c)),
+      t3i: Math.max(...player.matches.map(m => m.t3i)),
+      tlc: Math.max(...player.matches.map(m => m.tlc)),
+      tli: Math.max(...player.matches.map(m => m.tli)),
+      ro: Math.max(...player.matches.map(m => m.ro)),
+      rd: Math.max(...player.matches.map(m => m.rd)),
+      rt: Math.max(...player.matches.map(m => m.rt)),
+      as: Math.max(...player.matches.map(m => m.as)),
+      br: Math.max(...player.matches.map(m => m.br)),
+      bp: Math.max(...player.matches.map(m => m.bp)),
+      tp: Math.max(...player.matches.map(m => m.tp)),
+      fc: Math.max(...player.matches.map(m => m.fc)),
+      va: Math.max(...player.matches.map(m => m.va)),
+      pm: Math.max(...player.matches.map(m => m.pm))
+    };
     
     const thead = document.createElement("thead");
     thead.innerHTML = `
       <tr>
-        <th>Fecha</th>
-        <th>Rival</th>
-        <th>PTS</th>
-        <th>T2C</th>
-        <th>T2I</th>
-        <th>%T2</th>
-        <th>T3C</th>
-        <th>T3I</th>
-        <th>%T3</th>
-        <th>TLC</th>
-        <th>TLI</th>
-        <th>%TL</th>
-        <th>RO</th>
-        <th>RD</th>
-        <th>RT</th>
-        <th>AS</th>
-        <th>BR</th>
-        <th>BP</th>
-        <th>TP</th>
-        <th>FC</th>
-        <th>VA</th>
-        <th>+/-</th>
+        <th data-sort="date">Fecha</th>
+        <th data-sort="rival">Rival</th>
+        <th data-sort="pts">PTS</th>
+        <th data-sort="t2c">T2C</th>
+        <th data-sort="t2i">T2I</th>
+        <th data-sort="pct2">%T2</th>
+        <th data-sort="t3c">T3C</th>
+        <th data-sort="t3i">T3I</th>
+        <th data-sort="pct3">%T3</th>
+        <th data-sort="tlc">TLC</th>
+        <th data-sort="tli">TLI</th>
+        <th data-sort="pctTl">%TL</th>
+        <th data-sort="ro">RO</th>
+        <th data-sort="rd">RD</th>
+        <th data-sort="rt">RT</th>
+        <th data-sort="as">AS</th>
+        <th data-sort="br">BR</th>
+        <th data-sort="bp">BP</th>
+        <th data-sort="tp">TP</th>
+        <th data-sort="fc">FC</th>
+        <th data-sort="va">VA</th>
+        <th data-sort="pm">+/-</th>
       </tr>
     `;
+
+    // Añadir evento de click para ordenación
+    thead.querySelectorAll('th').forEach(th => {
+      th.addEventListener('click', () => {
+        const sortKey = th.dataset.sort;
+        const currentOrder = th.classList.contains('sorted-asc') ? 'desc' : 'asc';
+        
+        // Limpiar clases de ordenación previas
+        thead.querySelectorAll('th').forEach(header => {
+          header.classList.remove('sorted-asc', 'sorted-desc');
+        });
+        
+        // Añadir clase de ordenación actual
+        th.classList.add(`sorted-${currentOrder}`);
+        
+        // Ordenar los datos
+        const tbody = detailsTable.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        rows.sort((a, b) => {
+          let aVal = a.querySelector(`td[data-sort="${sortKey}"]`).dataset.value;
+          let bVal = b.querySelector(`td[data-sort="${sortKey}"]`).dataset.value;
+          
+          // Convertir a número si es posible
+          if (!isNaN(aVal)) aVal = parseFloat(aVal);
+          if (!isNaN(bVal)) bVal = parseFloat(bVal);
+          
+          if (currentOrder === 'asc') {
+            return aVal > bVal ? 1 : -1;
+          } else {
+            return aVal < bVal ? 1 : -1;
+          }
+        });
+        
+        // Reordenar las filas
+        rows.forEach(row => tbody.appendChild(row));
+      });
+    });
     
     const tbody = document.createElement("tbody");
     player.matches.forEach(match => {
       const matchRow = document.createElement("tr");
       matchRow.innerHTML = `
-        <td>${match.matchDate}</td>
-        <td>${match.rival}</td>
-        <td>${match.pts}</td>
-        <td>${match.t2c}</td>
-        <td>${match.t2i}</td>
-        <td>${match.pct2}</td>
-        <td>${match.t3c}</td>
-        <td>${match.t3i}</td>
-        <td>${match.pct3}</td>
-        <td>${match.tlc}</td>
-        <td>${match.tli}</td>
-        <td>${match.pctTl}</td>
-        <td>${match.ro}</td>
-        <td>${match.rd}</td>
-        <td>${match.rt}</td>
-        <td>${match.as}</td>
-        <td>${match.br}</td>
-        <td>${match.bp}</td>
-        <td>${match.tp}</td>
-        <td>${match.fc}</td>
-        <td>${match.va}</td>
-        <td>${match.pm}</td>
+        <td data-sort="date" data-value="${match.matchDate}">${match.matchDate}</td>
+        <td data-sort="rival" data-value="${match.rival}">${match.rival}</td>
+        <td data-sort="pts" data-value="${match.pts}" ${match.pts === maxValues.pts ? 'class="max-value"' : ''}>${match.pts}</td>
+        <td data-sort="t2c" data-value="${match.t2c}" ${match.t2c === maxValues.t2c ? 'class="max-value"' : ''}>${match.t2c}</td>
+        <td data-sort="t2i" data-value="${match.t2i}" ${match.t2i === maxValues.t2i ? 'class="max-value"' : ''}>${match.t2i}</td>
+        <td data-sort="pct2" data-value="${match.pct2}">${match.pct2}</td>
+        <td data-sort="t3c" data-value="${match.t3c}" ${match.t3c === maxValues.t3c ? 'class="max-value"' : ''}>${match.t3c}</td>
+        <td data-sort="t3i" data-value="${match.t3i}" ${match.t3i === maxValues.t3i ? 'class="max-value"' : ''}>${match.t3i}</td>
+        <td data-sort="pct3" data-value="${match.pct3}">${match.pct3}</td>
+        <td data-sort="tlc" data-value="${match.tlc}" ${match.tlc === maxValues.tlc ? 'class="max-value"' : ''}>${match.tlc}</td>
+        <td data-sort="tli" data-value="${match.tli}" ${match.tli === maxValues.tli ? 'class="max-value"' : ''}>${match.tli}</td>
+        <td data-sort="pctTl" data-value="${match.pctTl}">${match.pctTl}</td>
+        <td data-sort="ro" data-value="${match.ro}" ${match.ro === maxValues.ro ? 'class="max-value"' : ''}>${match.ro}</td>
+        <td data-sort="rd" data-value="${match.rd}" ${match.rd === maxValues.rd ? 'class="max-value"' : ''}>${match.rd}</td>
+        <td data-sort="rt" data-value="${match.rt}" ${match.rt === maxValues.rt ? 'class="max-value"' : ''}>${match.rt}</td>
+        <td data-sort="as" data-value="${match.as}" ${match.as === maxValues.as ? 'class="max-value"' : ''}>${match.as}</td>
+        <td data-sort="br" data-value="${match.br}" ${match.br === maxValues.br ? 'class="max-value"' : ''}>${match.br}</td>
+        <td data-sort="bp" data-value="${match.bp}" ${match.bp === maxValues.bp ? 'class="max-value"' : ''}>${match.bp}</td>
+        <td data-sort="tp" data-value="${match.tp}" ${match.tp === maxValues.tp ? 'class="max-value"' : ''}>${match.tp}</td>
+        <td data-sort="fc" data-value="${match.fc}" ${match.fc === maxValues.fc ? 'class="max-value"' : ''}>${match.fc}</td>
+        <td data-sort="va" data-value="${match.va}" ${match.va === maxValues.va ? 'class="max-value"' : ''}>${match.va}</td>
+        <td data-sort="pm" data-value="${match.pm}" ${match.pm === maxValues.pm ? 'class="max-value"' : ''}>${match.pm}</td>
       `;
       tbody.appendChild(matchRow);
     });

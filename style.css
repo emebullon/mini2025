@@ -171,6 +171,20 @@ input:checked + .slider:before {
   color: #fff;
 }
 
+/* Estilos para los grupos en los selects */
+.stats-filters select optgroup {
+  font-weight: bold;
+  color: #111C4E;
+  background-color: #f5f5f5;
+}
+
+.stats-filters select option {
+  font-weight: normal;
+  color: #111C4E;
+  background-color: #fff;
+  padding: 5px;
+}
+
 /* TABLA */
 .stats-table-container {
   position: relative;
@@ -300,7 +314,17 @@ input:checked + .slider:before {
 
 /* Efecto hover en las filas */
 .stats-table tbody tr:hover td {
-  background-color: rgba(255,158,27,0.1);
+  background-color: rgba(17, 28, 78, 0.05) !important;
+}
+
+/* Efecto hover en las celdas */
+.stats-table tbody td:hover {
+  background-color: rgba(255, 158, 27, 0.1) !important;
+}
+
+/* Mantener el efecto hover en la tabla de detalles */
+.match-details-table tbody tr:hover td {
+  background-color: rgba(255, 158, 27, 0.05);
 }
 
 /* PAGINACIÓN */
@@ -346,6 +370,40 @@ input:checked + .slider:before {
   padding: 4px 8px;
   font-size: 0.85em;
   text-align: center;
+}
+
+/* Estilos para ordenación en la tabla de detalles */
+.match-details-table th {
+  position: relative;
+  cursor: pointer;
+  padding-right: 20px !important;
+  background-color: #f2f2f2;
+}
+
+.match-details-table th::before {
+  content: '↕';
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+  font-size: 12px;
+}
+
+.match-details-table th.sorted-asc::before {
+  content: '↑';
+  color: #FF9E1B;
+}
+
+.match-details-table th.sorted-desc::before {
+  content: '↓';
+  color: #FF9E1B;
+}
+
+/* Estilos para valores máximos */
+.match-details-table td.max-value {
+  font-weight: bold;
+  color: #FF9E1B;
 }
 
 /* FOOTER */
