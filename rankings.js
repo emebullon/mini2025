@@ -10,7 +10,7 @@ let currentSortCol = null;
 let currentSortOrder = "desc";
 
 let currentPage = 1;
-const itemsPerPage = 50;
+const itemsPerPage = 100;
 
 /***************************************
  * Funciones de Responsividad
