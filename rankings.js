@@ -139,6 +139,7 @@ async function loadAllStats() {
           "LF Challenge",
           "L.F. 2",
           "CE SSAA Cadete Fem.",
+          "CE SSAA Mini Fem.",
           "CE SSA Infantil Fem."
         ];
         let genero = "H";
