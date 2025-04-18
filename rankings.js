@@ -10,7 +10,7 @@ let currentSortCol = null;
 let currentSortOrder = "desc";
 
 let currentPage = 1;
-const itemsPerPage = 100;
+const itemsPerPage = 50;
 
 /***************************************
  * Funciones de Responsividad
@@ -110,14 +110,39 @@ function isGroupPhase(round) {
   return /^[A-E]$/.test(round.trim());
 }
 
+// Añadir función para convertir minutos formateados a segundos
+function minutesToSeconds(minFormatted) {
+  if (!minFormatted) return 0;
+  const [minutes, seconds] = minFormatted.split(':').map(Number);
+  return minutes * 60 + seconds;
+}
+
+// Añadir función para convertir segundos a formato MM:SS
+function secondsToMinutes(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 async function loadAllStats() {
   const urls = await fetchMatchFiles();
+  const totalFiles = urls.length;
+  let processedFiles = 0;
   const playersMap = new Map();
+  const loaderText = document.querySelector('.loader-text');
+  const progressBar = document.querySelector('.progress-bar-fill');
 
   for (const url of urls) {
     try {
       const resp = await fetch(url);
       const data = await resp.json();
+      
+      // Actualizar el progreso
+      processedFiles++;
+      const progress = Math.round((processedFiles / totalFiles) * 100);
+      loaderText.textContent = `Cargando estadísticas... ${progress}%`;
+      progressBar.style.width = `${progress}%`;
+
       const comp = data.HEADER.competition || "";
       const round = data.HEADER.round || "";
       competitionSet.add(comp);
@@ -139,7 +164,6 @@ async function loadAllStats() {
           "LF Challenge",
           "L.F. 2",
           "CE SSAA Cadete Fem.",
-          "CE SSAA Mini Fem.",
           "CE SSA Infantil Fem."
         ];
         let genero = "H";
@@ -166,6 +190,7 @@ async function loadAllStats() {
                 phaseType: id.endsWith('total') ? "" : (id.endsWith('grupos') ? "Fase de Grupos" : "Playoffs"),
                 gender: genero,
                 games: 0,
+                seconds: 0, // Total de segundos jugados
                 pts: 0,
                 t2i: 0,
                 t2c: 0,
@@ -188,12 +213,13 @@ async function loadAllStats() {
             }
           });
 
-          // Actualizar estadísticas en el registro total
+          // Actualizar estadísticas en el registro total y de fase
           const totalRecord = playersMap.get(totalId);
           const phaseRecord = playersMap.get(currentPhase === "Fase de Grupos" ? groupPhaseId : playoffsId);
 
           [totalRecord, phaseRecord].forEach(record => {
             record.games += 1;
+            record.seconds += minutesToSeconds(player.minFormatted || "0:00");
 
             const p2a = parseInt(player.p2a || 0);
             const p2m = parseInt(player.p2m || 0);
@@ -229,6 +255,7 @@ async function loadAllStats() {
               round: round,
               phaseType: currentPhase,
               rival: rivalName,
+              minutes: player.minFormatted || "0:00",
               pts: parseInt(player.pts || 0),
               t2i: p2a,
               t2c: p2m,
@@ -255,6 +282,9 @@ async function loadAllStats() {
       });
     } catch (err) {
       console.error("Error al cargar", url, err);
+      processedFiles++; // Incrementar aunque haya error para mantener el progreso
+      const progress = Math.round((processedFiles / totalFiles) * 100);
+      progressBar.style.width = `${progress}%`;
     }
   }
 
@@ -347,6 +377,11 @@ function renderTable(data, mode = "totales") {
     const row = document.createElement("tr");
     const rank = (currentPage - 1) * itemsPerPage + index + 1;
 
+    // Calcular minutos promedio si es necesario
+    const minutes = mode === "totales" 
+      ? secondsToMinutes(player.seconds)
+      : secondsToMinutes(Math.round(player.seconds / player.games));
+
     // Calcular los valores que se mostrarán
     const pts = mode === "totales" ? player.pts : (player.pts / player.games).toFixed(1);
     const t2c = mode === "totales" ? player.t2c : (player.t2c / player.games).toFixed(1);
@@ -381,6 +416,7 @@ function renderTable(data, mode = "totales") {
       <td><img src="${player.playerPhoto}" alt="${player.playerName}" class="player-photo"></td>
       <td data-col="playerName">${limitName(player.playerName)}</td>
       <td class="team-name" data-fullname="${teamName}">${shortTeamName}</td>
+      <td data-col="min">${minutes}</td>
       <td data-col="pts">${pts}</td>
       <td data-col="t2c">${t2c}</td>
       <td data-col="t2i">${t2i}</td>
@@ -419,7 +455,7 @@ function toggleMatchDetails(cell, player) {
     detailsRow.className = "details-row";
     
     const detailsCell = document.createElement("td");
-    detailsCell.colSpan = 26;
+    detailsCell.colSpan = 27; // Aumentar en 1 para la nueva columna
     
     const detailsTable = document.createElement("table");
     detailsTable.className = "match-details-table";
@@ -450,6 +486,7 @@ function toggleMatchDetails(cell, player) {
       <tr>
         <th data-sort="date">Fecha</th>
         <th data-sort="rival">Rival</th>
+        <th data-sort="min">MIN</th>
         <th data-sort="pts">PTS</th>
         <th data-sort="t2c">T2C</th>
         <th data-sort="t2i">T2I</th>
@@ -517,6 +554,7 @@ function toggleMatchDetails(cell, player) {
       matchRow.innerHTML = `
         <td data-sort="date" data-value="${match.matchDate}">${match.matchDate}</td>
         <td data-sort="rival" data-value="${match.rival}">${match.rival}</td>
+        <td data-sort="min" data-value="${minutesToSeconds(match.minutes)}">${match.minutes}</td>
         <td data-sort="pts" data-value="${match.pts}" ${match.pts === maxValues.pts ? 'class="max-value"' : ''}>${match.pts}</td>
         <td data-sort="t2c" data-value="${match.t2c}" ${match.t2c === maxValues.t2c ? 'class="max-value"' : ''}>${match.t2c}</td>
         <td data-sort="t2i" data-value="${match.t2i}" ${match.t2i === maxValues.t2i ? 'class="max-value"' : ''}>${match.t2i}</td>
@@ -583,7 +621,15 @@ function sortArray(array, colKey, order, mode) {
 }
 
 function getSortValue(obj, colKey, mode) {
+  // Caso especial para minutos
+  if (colKey === 'min') {
+    return obj.seconds;  // Usamos los segundos directamente para ordenar
+  }
+  
   if (mode === "promedios" && obj.games > 0) {
+    if (colKey === 'min') {
+      return obj.seconds / obj.games;  // Para promedios también usamos segundos
+    }
     return obj[colKey] / obj.games;
   }
   return obj[colKey];
@@ -614,10 +660,21 @@ function updatePaginationInfo(totalItems) {
 /***************************************
  * Inicialización
  ***************************************/
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // El loader ya está visible por defecto
+        await loadAllStats();
+        // Ocultamos el loader cuando todo está cargado
+        document.querySelector('.loader-container').classList.add('loader-hidden');
+    } catch (error) {
+        console.error('Error loading statistics:', error);
+        document.querySelector('.loader-text').textContent = 'Error al cargar los datos. Por favor, recarga la página.';
+    }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   setupMobileMenu();
   setupMobileColumns();
-  loadAllStats();
 
   document.getElementById("btnApplyFilters").addEventListener("click", () => {
     currentPage = 1;
