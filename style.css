@@ -994,3 +994,27 @@ footer {
 .loader-hidden {
     display: none;
 }
+
+.player-name {
+    font-weight: 600;
+    color: #2F4170;
+    transition: color 0.2s ease;
+    position: relative;
+}
+
+.player-name:hover {
+    color: #FF9E1B;
+    text-decoration: underline;
+}
+
+.player-name::after {
+    content: '📊';
+    font-size: 12px;
+    margin-left: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.player-name:hover::after {
+    opacity: 1;
+}

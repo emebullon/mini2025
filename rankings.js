@@ -369,6 +369,15 @@ function getInitials(name) {
   return name.split(" ").map(word => word[0]).join("");
 }
 
+function showPlayerMatches(playerData) {
+  // Encontrar la celda del jugador
+  const playerCell = document.querySelector(`td.player-name[onclick*="${playerData.playerName}"]`);
+  if (playerCell) {
+    const row = playerCell.parentElement;
+    toggleMatchDetails(row.querySelector('.games-cell'), playerData);
+  }
+}
+
 function renderTable(data, mode = "totales") {
   const tbody = document.querySelector("#statsTable tbody");
   tbody.innerHTML = "";
@@ -414,7 +423,8 @@ function renderTable(data, mode = "totales") {
       <td>${rank}</td>
       <td>${player.dorsal}</td>
       <td><img src="${player.playerPhoto}" alt="${player.playerName}" class="player-photo"></td>
-      <td data-col="playerName">${limitName(player.playerName)}</td>
+      <td class="player-name" onclick='showPlayerMatches(${JSON.stringify(player).replace(/'/g, "\\'")})'
+          style="cursor: pointer">${limitName(player.playerName)}</td>
       <td class="team-name" data-fullname="${teamName}">${shortTeamName}</td>
       <td data-col="min">${minutes}</td>
       <td data-col="pts">${pts}</td>
